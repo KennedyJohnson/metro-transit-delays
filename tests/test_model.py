@@ -88,6 +88,7 @@ def test_collecting_exports_schedules(world):
     east = body["dirs"]["0"]
     assert [s[0] for s in east["stops"]] == synth.STOPS and east["name"] == "East to S9"
     assert all(len(t["t"]) == len(synth.STOPS) for t in east["trips"])
+    assert {t["id"] for t in east["trips"]} == {t[0] for t in synth.trips() if t[1] == "21" and t[2] == 0}
 
 
 def test_train_live_and_parity(world):

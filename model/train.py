@@ -199,7 +199,7 @@ def export_schedules(z: Path, st: dict | None, rec: pd.Series | None):
                     if tk in trip_stats.index:
                         v = trip_stats.loc[tk]
                         hist[dt] = [r4(v.delay_min), r4(v.late), r4(v.early), int(v.n)]
-                trip_rows.append({"s": svc_index[svc], "start": start, "t": times, **({"h": hist} if hist else {})})
+                trip_rows.append({"id": tid, "s": svc_index[svc], "start": start, "t": times, **({"h": hist} if hist else {})})
             trip_rows.sort(key=lambda t: t["start"])
             body["dirs"][str(d)] = {"name": name, "stops": stop_rows, "trips": trip_rows}
             rs = rd_stats.loc[key] if key in rd_stats.index else None

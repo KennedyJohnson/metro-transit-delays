@@ -7,7 +7,7 @@ Static GitHub Pages site (`docs/`, served from main): pick route/direction/stop/
 - `collector/collect.py` - GTFS-RT TripUpdates → next-stop delay per trip, joined to schedule → appends `data/raw/YYYY-MM-DD.csv` (FIELDS). Missing start_date → today/yesterday by schedule fit.
 - `model/features.py` - `load_obs` (dedupe trip+stop keep last), smoothed stats (K=20: trip/stop shrink to route-dir, route-dir to global), `recent7`, `build()` → FEATURES. **`docs/features.js featureRow()` mirrors `build()`; change both.**
 - `model/trees.py` / `docs/model.js` - JSON tree dump + evaluators (Python vectorized port == JS).
-- `model/train.py` - live-score published model (rebuilds stats from `docs/data/routes*.json`), backtest last 7 days, fit 3 models (300 rounds), export `docs/data/{meta,routes,calendar,metrics,live}.json`, `routes/<route>.json` (stops [id,name,stop_mean], trips {s: svc idx, start, t: minutes per stop column, h: {wk|sat|sun: [mean,late,early,n]}}), `model_{median,late,early}.json`. Schedules exported even before MIN_DAYS=10. Fails if newest snapshot > STALE_HOURS=36.
+- `model/train.py` - live-score published model (rebuilds stats from `docs/data/routes*.json`), backtest last 7 days, fit 3 models (300 rounds), export `docs/data/{meta,routes,calendar,metrics,live}.json`, `routes/<route>.json` (stops [id,name,stop_mean], trips {id: GTFS trip_id (Gopher X Metro matches NexTrip trip_id on it - keep), s: svc idx, start, t: minutes per stop column, h: {wk|sat|sun: [mean,late,early,n]}}), `model_{median,late,early}.json`. Schedules exported even before MIN_DAYS=10. Fails if newest snapshot > STALE_HOURS=36.
 - `tests/` - synthetic GTFS (`synth.py`), end-to-end train/live, Python↔JS parity via `tests/parity.js` (needs node).
 
 ## Automation
