@@ -58,3 +58,17 @@ jobs:
               body: `Predictions and schedules on the site are going stale, or the collector has stopped.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               labels: ['stale-data'],
             });
+
+  # GitHub disables cron workflows after 60 days without repo activity. The collector restarts
+  # itself and commits constantly, but re-enable both crons daily in case that chain ever stops.
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: |
+          for wf in collect.yml forecast.yml; do
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$wf/enable"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
