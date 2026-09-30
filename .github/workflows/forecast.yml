@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: data
+  group: forecast
   cancel-in-progress: false
 
 jobs:

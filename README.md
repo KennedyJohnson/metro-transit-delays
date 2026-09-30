@@ -45,7 +45,7 @@ GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a br
 
 | Workflow | When | What |
 |---|---|---|
-| `collect.yml` | every 15 min | snapshot the live feed → `data/raw/` |
+| `collect.yml` | continuous | polls the live feed every 15 min for ~5.5 h per run, then starts the next run itself (6-hourly cron restarts the chain if it breaks) → `data/raw/` |
 | `forecast.yml` | daily 09:15 UTC | tests, live score, retrain, export `docs/data/`; opens a `stale-data` issue on failure |
 | `ci.yml` | pushes / PRs | pytest, incl. the Python↔JS parity test |
 

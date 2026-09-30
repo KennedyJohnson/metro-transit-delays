@@ -11,4 +11,4 @@ Static GitHub Pages site (`docs/`, served from main): pick route/direction/stop/
 - `tests/` - synthetic GTFS (`synth.py`), end-to-end train/live, Python↔JS parity via `tests/parity.js` (needs node).
 
 ## Automation
-- `collect.yml` every 15 min (commits `data/raw`), `forecast.yml` daily 09:15 UTC (gzip finished days, pytest, train.py, commit; failure → `stale-data` issue), `ci.yml` pytest. Collect/forecast share concurrency group `data`.
+- `collect.yml` self-chaining: each run polls every 15 min for ~5.5 h (commit+push per poll), then `gh workflow run collect.yml`; 6-hourly cron is only a backup, `forecast.yml` daily 09:15 UTC (gzip finished days, pytest, train.py, commit; failure → `stale-data` issue), `ci.yml` pytest. Collect and forecast use separate concurrency groups (a 5.5 h collect run must not block training); pushes use pull --rebase retries.
