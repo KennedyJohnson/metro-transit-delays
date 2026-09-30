@@ -1,5 +1,9 @@
 # Will my bus be late?
 
+[![CI](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/ci.yml/badge.svg)](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/ci.yml)
+[![Collect](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/collect.yml/badge.svg)](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/collect.yml)
+[![Daily model](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/forecast.yml/badge.svg)](https://github.com/KennedyJohnson/metro-transit-delays/actions/workflows/forecast.yml)
+
 **Live site:** https://kennedyjohnson.github.io/metro-transit-delays/
 
 Pick a Twin Cities Metro Transit route, direction, stop, day and time. For each scheduled departure, the site shows:
@@ -35,6 +39,18 @@ It also names the most and least reliable buses around your time. Save your regu
 
 Schedules are published from day one. Predictions start once 10 days of data exist.
 
+## Repository setup
+
+GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a branch → `main` / `/docs`). The workflows need no secrets:
+
+| Workflow | When | What |
+|---|---|---|
+| `collect.yml` | every 15 min | snapshot the live feed → `data/raw/` |
+| `forecast.yml` | daily 09:15 UTC | tests, live score, retrain, export `docs/data/`; opens a `stale-data` issue on failure |
+| `ci.yml` | pushes / PRs | pytest, incl. the Python↔JS parity test |
+
+Data files the site reads (`docs/data/`): `meta.json` (status), `routes.json`, `routes/<route>.json` (stops, trips, history), `calendar.json` (services for the next 14 days, holidays), `model_{median,late,early}.json`, `metrics.json` (backtest), `live.json` (daily scores). [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro) reads the same files to flag departures likely to run late.
+
 ## Run locally
 
 ```bash
@@ -53,3 +69,5 @@ python -m http.server -d docs 8000
 - Predictions are for planning. They can't see crashes, detours or breakdowns on the day.
 
 Data: Metro Transit (not affiliated). Weather: Open-Meteo (CC BY 4.0).
+
+MIT License.
