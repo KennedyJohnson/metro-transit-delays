@@ -24,24 +24,55 @@ def daytype(dates: pd.Series) -> pd.Series:
     return pd.Series(np.select([dates.dt.dayofweek < 5, dates.dt.dayofweek == 5], ["wk", "sat"], "sun"), index=dates.index)
 
 
-def load_obs(raw_dir: Path) -> pd.DataFrame:
-    files = sorted(raw_dir.glob("*.csv")) + sorted(raw_dir.glob("*.csv.gz"))
-    if not files:
-        return pd.DataFrame()
-    df = pd.concat([pd.read_csv(f, dtype={"route_id": str, "trip_id": str, "stop_id": str, "start_date": str})
-                    for f in files], ignore_index=True)
+RAW_DTYPES = {"route_id": str, "trip_id": str, "stop_id": str, "start_date": str}
+RAW_PATTERNS = ("*.csv", "*.csv.gz", "*.parquet")
+
+
+def read_raw(path: Path) -> pd.DataFrame:
+    """One day's raw snapshots, from a live .csv, an older .csv.gz or a compacted .parquet, with CSV dtypes."""
+    if path.suffix != ".parquet":
+        return pd.read_csv(path, dtype=RAW_DTYPES)
+    df = pd.read_parquet(path)
+    for c in df.columns:
+        if c in RAW_DTYPES or c == "source":
+            df[c] = df[c].astype("str")  # compacted as categories
+        elif c == "ts":
+            df[c] = df[c].astype("int64")
+        else:
+            df[c] = df[c].astype("float64")  # compacted as nullable Int32
+    return df
+
+
+def usable(df: pd.DataFrame) -> pd.DataFrame:
+    """The raw rows the model can use: real sightings, one per trip and stop (the last, closest to arrival).
+    Applying it again to its own output changes nothing, so compacted days (collector/trim.py) are lossless."""
     df = df[(df.source != "canceled") & df.delay_s.notna() & df.sched_s.notna()].copy()
-    df["date"] = pd.to_datetime(df.start_date, format="%Y%m%d", errors="coerce")
-    df = df.dropna(subset=["date"])
+    date = pd.to_datetime(df.start_date, format="%Y%m%d", errors="coerce")
+    df, date = df[date.notna()], date[date.notna()]
     # Keep only real sightings. A trip that hasn't left its first stop is reported with delay 0 until it starts,
     # so drop those placeholders, and anything whose predicted arrival is more than MAX_AHEAD_MIN away.
-    midnight = ((df.date + pd.Timedelta(hours=12)).dt.tz_localize(TZ) - pd.Timedelta(hours=12)
+    midnight = ((date + pd.Timedelta(hours=12)).dt.tz_localize(TZ) - pd.Timedelta(hours=12)
                 - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)  # unit-safe epoch seconds
     ahead_min = (midnight + df.sched_s + df.delay_s - df.ts) / 60
     not_started = (df.stop_idx == 0) & (df.delay_s == 0) & (midnight + df.sched_s > df.ts)
-    df = df[(ahead_min <= MAX_AHEAD_MIN) & ~not_started].copy()
+    df = df[(ahead_min <= MAX_AHEAD_MIN) & ~not_started]
     # a trip seen at the same stop in several polls: keep the last snapshot (closest to arrival)
-    df = df.sort_values("ts").drop_duplicates(["date", "trip_id", "stop_sequence"], keep="last")
+    return df.sort_values("ts", kind="stable").drop_duplicates(["start_date", "trip_id", "stop_sequence"], keep="last")
+
+
+def raw_files(raw_dir: Path) -> list[Path]:
+    return sorted(f for pat in RAW_PATTERNS for f in raw_dir.glob(pat))
+
+
+def load_obs(raw_dir: Path) -> pd.DataFrame:
+    files = raw_files(raw_dir)
+    if not files:
+        return pd.DataFrame()
+    # filter each day as it's read so years of snapshots never sit in memory at once; trips past midnight can
+    # appear in two days' files, so dedupe once more across days
+    df = pd.concat([usable(read_raw(f)) for f in files], ignore_index=True)
+    df = df.sort_values("ts", kind="stable").drop_duplicates(["start_date", "trip_id", "stop_sequence"], keep="last").copy()
+    df["date"] = pd.to_datetime(df.start_date, format="%Y%m%d")
     df["direction_id"] = df.direction_id.fillna(0).astype(int)
     df["rd"] = df.route_id + "|" + df.direction_id.astype(str)
     df["dt"] = daytype(df.date)
@@ -50,6 +81,9 @@ def load_obs(raw_dir: Path) -> pd.DataFrame:
     df["delay_min"] = df.delay_s / 60
     df["late"] = (df.delay_s >= LATE).astype(int)
     df["early"] = (df.delay_s <= EARLY).astype(int)
+    # the ID and key columns repeat a few thousand values millions of times; categories cut memory ~5x
+    for c in ["route_id", "trip_id", "stop_id", "start_date", "source", "rd", "dt", "trip_key", "stop_key"]:
+        df[c] = df[c].astype("category")
     return df.reset_index(drop=True)
 
 

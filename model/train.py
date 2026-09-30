@@ -40,9 +40,10 @@ TARGETS = {"median": ("delay_min", dict(objective="l1"), "regression"),
            "early": ("early", dict(objective="binary"), "binary")}
 ROUNDS = 300
 WX_BLANK = 0.15  # train some rows without weather, for days the forecast can't reach
-# Keeps the daily job fast as a year of snapshots piles up (~45k observations a day): fit on an even random
-# sample across the whole retained window, so every season is still represented. History stats use every row.
-MAX_TRAIN_ROWS = 2_000_000
+# Keeps the daily job bounded as up to 3 years of snapshots pile up (~19k usable observations a day, ~21M at the
+# 3-year cap): fit on an even random sample across the whole retained window, so every season is represented.
+# 5M rows is ~1 min per model on the 4-core runner. History stats use every row.
+MAX_TRAIN_ROWS = 5_000_000
 
 
 def train_sample(df: pd.DataFrame, n: int | None = None):

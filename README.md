@@ -46,10 +46,10 @@ GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a br
 | Workflow | When | What |
 |---|---|---|
 | `collect.yml` | continuous | polls the live feed every 15 min for ~5.5 h per run, then starts the next run itself (6-hourly cron restarts the chain if it breaks) → the `data` branch |
-| `forecast.yml` | daily 09:15 UTC | gzips finished days and drops raw days older than 365 (`collector/trim.py`), then squashes the `data` branch to one commit; tests, live score, retrain on up to 2M sampled rows, export `docs/data/`; opens a `stale-data` issue on failure |
+| `forecast.yml` | daily 09:15 UTC | compacts finished days to Parquet and drops raw days older than 3 years (`collector/trim.py`), then squashes the `data` branch to one commit; tests, live score, retrain on up to 5M sampled rows, export `docs/data/`; opens a `stale-data` issue on failure |
 | `ci.yml` | pushes / PRs | pytest, incl. the Python↔JS parity test |
 
-Raw snapshots (`YYYY-MM-DD.csv[.gz]`, one per day) live on the `data` branch, not `main`: the collector commits there every 15 minutes, and the daily job replaces that branch's history with a single commit of the last 365 days so the repo doesn't grow without bound. Locally, put them in `data/raw/` (or set `RAW_DIR`).
+Raw snapshots (`YYYY-MM-DD.csv[.gz]`, one per day) live on the `data` branch, not `main`: the collector commits there every 15 minutes, and the daily job compacts each finished day to Parquet (only the rows the model uses, plus cancellations; ~100-250 KB/day, a third of gzip) and replaces that branch's history with a single commit of the last 3 years (600 MB cap), so the repo doesn't grow without bound. Locally, put them in `data/raw/` (or set `RAW_DIR`).
 
 Data files the site reads (`docs/data/`): `meta.json` (status), `routes.json`, `routes/<route>.json` (stops, trips, history), `calendar.json` (services for the next 14 days, holidays), `model_{median,late,early}.json`, `metrics.json` (backtest), `live.json` (daily scores). [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro) reads the same files to flag departures likely to run late.
 
