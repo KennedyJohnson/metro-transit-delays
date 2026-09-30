@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 1
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
       - run: pip install gtfs-realtime-bindings requests pandas pyarrow
       - id: day
