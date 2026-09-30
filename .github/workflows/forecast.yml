@@ -27,8 +27,8 @@ jobs:
         with:
           node-version: "22"
       - run: pip install -r requirements.txt
-      - name: Compress finished days
-        run: mkdir -p data/raw && find data/raw -name '*.csv' ! -name "$(TZ=America/Chicago date +%F).csv" -exec gzip -f {} \;
+      - name: Compress finished days, drop days past the retention window
+        run: python collector/trim.py
       - run: python -m pytest -q tests
       - run: python model/train.py
       - name: Commit

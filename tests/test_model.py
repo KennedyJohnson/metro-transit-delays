@@ -158,3 +158,16 @@ def test_load_obs_drops_not_started_placeholders(tmp_path):
     (tmp_path / "raw").mkdir()
     pd.DataFrame(rows).to_csv(tmp_path / "raw" / "2026-10-05.csv", index=False)
     assert sorted(F.load_obs(tmp_path / "raw").trip_id) == ["first_stop_late", "started"]
+
+
+def test_train_with_row_cap(world, monkeypatch):
+    """Past MAX_TRAIN_ROWS the models fit on a sample, but history stats and exports still use every row."""
+    tmp, days, obs, _ = world
+    put(tmp, obs, days)
+    n_all = len(F.load_obs(tmp / "raw"))
+    monkeypatch.setattr(train, "MAX_TRAIN_ROWS", n_all // 3)
+    train.main()
+    meta = json.loads((tmp / "docs/meta.json").read_text())
+    assert meta["model"] is True and meta["observations"] == n_all
+    for k in ("median", "late", "early"):
+        assert json.loads((tmp / f"docs/model_{k}.json").read_text())["trees"]

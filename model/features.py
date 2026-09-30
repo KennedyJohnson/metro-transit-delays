@@ -127,15 +127,18 @@ def build(rows: pd.DataFrame, st: dict, rec: pd.Series, weather: pd.DataFrame | 
     return X[FEATURES].astype(float)
 
 
-def oof_stats_features(df: pd.DataFrame, rec, weather, folds=5, seed=0) -> pd.DataFrame:
+def oof_stats_features(df: pd.DataFrame, rec, weather, folds=5, seed=0, rows=None) -> pd.DataFrame:
     """Training features with out-of-fold history stats (folds are whole days, so a trip's own outcome that day
-    never feeds its own features)."""
+    never feeds its own features). rows: build features for only these index labels (a training sample), while
+    the history stats still come from all of df."""
     days = df.date.unique()
     fold_of_day = dict(zip(days, np.random.default_rng(seed).integers(0, folds, len(days))))
     fold = df.date.map(fold_of_day).to_numpy()
+    target = df if rows is None else df.loc[rows]
+    tfold = target.date.map(fold_of_day).to_numpy()
     parts = []
     for k in range(folds):
-        m = fold == k
+        m = tfold == k
         if m.any():
-            parts.append(build(df[m], stats(df[~m]), rec, weather))
-    return pd.concat(parts).loc[df.index]
+            parts.append(build(target[m], stats(df[fold != k]), rec, weather))
+    return pd.concat(parts).loc[target.index]

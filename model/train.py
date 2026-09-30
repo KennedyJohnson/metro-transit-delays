@@ -38,6 +38,17 @@ TARGETS = {"median": ("delay_min", dict(objective="l1"), "regression"),
            "early": ("early", dict(objective="binary"), "binary")}
 ROUNDS = 300
 WX_BLANK = 0.15  # train some rows without weather, for days the forecast can't reach
+# Keeps the daily job fast as a year of snapshots piles up (~45k observations a day): fit on an even random
+# sample across the whole retained window, so every season is still represented. History stats use every row.
+MAX_TRAIN_ROWS = 2_000_000
+
+
+def train_sample(df: pd.DataFrame, n: int | None = None):
+    """Index labels to fit on: all rows if there are at most n, else a seeded random n spread over every day."""
+    n = MAX_TRAIN_ROWS if n is None else n
+    if len(df) <= n:
+        return None
+    return np.sort(np.random.default_rng(2).choice(df.index.to_numpy(), n, replace=False))
 
 
 def write(name, obj):
@@ -245,9 +256,10 @@ def main():
     # backtest: history tables from training days only, like serving
     split = np.sort(df.date.unique())[-TEST_DAYS]
     tr, te = df[df.date < split], df[df.date >= split]
-    Xtr = F.oof_stats_features(tr, rec, weather)
+    rows = train_sample(tr)
+    Xtr = F.oof_stats_features(tr, rec, weather, rows=rows)
     Xte = F.build(te, F.stats(tr), rec, weather)
-    bt_models = {k: fit(Xtr, tr[col], p) for k, (col, p, _) in TARGETS.items()}
+    bt_models = {k: fit(Xtr, tr.loc[Xtr.index, col], p) for k, (col, p, _) in TARGETS.items()}
     bt = evaluate(te, Xte, {k: m.predict(Xte) for k, m in bt_models.items()})
     bt["test_days"] = [f"{pd.Timestamp(split):%Y-%m-%d}", f"{df.date.max():%Y-%m-%d}"]
     imp = pd.Series(bt_models["median"].feature_importance("gain"), index=F.FEATURES)
@@ -256,16 +268,16 @@ def main():
     write("metrics.json", bt)
 
     # final models on everything
-    X = F.oof_stats_features(df, rec, weather)
+    X = F.oof_stats_features(df, rec, weather, rows=train_sample(df))
     for k, (col, p, kind) in TARGETS.items():
-        write(f"model_{k}.json", trees.dump(fit(X, df[col], p), kind))
+        write(f"model_{k}.json", trees.dump(fit(X, df.loc[X.index, col], p), kind))
     st = F.stats(df)
     last = df.date.max()
     rec_now = rec.xs(last + pd.Timedelta(days=1), level="date") if (last + pd.Timedelta(days=1)) in rec.index.get_level_values("date") else pd.Series(dtype=float)
     n = export_schedules(z, st, rec_now)
     write("meta.json", meta | {"model": True, "trained_through": f"{last:%Y-%m-%d}", "global": st["global"],
                                "features": F.FEATURES})
-    print(f"trained on {len(df):,} observations over {days} days; exported {n} routes")
+    print(f"trained on {len(X):,} of {len(df):,} observations over {days} days; exported {n} routes")
 
 
 if __name__ == "__main__":

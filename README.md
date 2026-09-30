@@ -46,7 +46,7 @@ GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a br
 | Workflow | When | What |
 |---|---|---|
 | `collect.yml` | continuous | polls the live feed every 15 min for ~5.5 h per run, then starts the next run itself (6-hourly cron restarts the chain if it breaks) → `data/raw/` |
-| `forecast.yml` | daily 09:15 UTC | tests, live score, retrain, export `docs/data/`; opens a `stale-data` issue on failure |
+| `forecast.yml` | daily 09:15 UTC | gzips finished days and drops raw days older than 365 (`collector/trim.py`), tests, live score, retrain on up to 2M sampled rows, export `docs/data/`; opens a `stale-data` issue on failure |
 | `ci.yml` | pushes / PRs | pytest, incl. the Python↔JS parity test |
 
 Data files the site reads (`docs/data/`): `meta.json` (status), `routes.json`, `routes/<route>.json` (stops, trips, history), `calendar.json` (services for the next 14 days, holidays), `model_{median,late,early}.json`, `metrics.json` (backtest), `live.json` (daily scores). [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro) reads the same files to flag departures likely to run late.
