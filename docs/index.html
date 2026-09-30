@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metro Transit Delay Forecast</title>
+  <meta name="description" content="Hour-by-hour forecast of how late each Twin Cities Metro Transit route will run today, from a model trained on its own live-feed history.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>How late will my bus be today?</h1>
+      <p class="lede">An hour-by-hour forecast of how late each Metro Transit route will run today. A model trained on the history of Metro Transit's own live feed makes the forecast each morning, and every forecast is scored against what actually happened.</p>
+    </header>
+
+    <section id="collecting" class="card" hidden>
+      <h2>Still collecting data</h2>
+      <p id="collecting-text"></p>
+    </section>
+
+    <section id="today" hidden>
+      <div class="controls">
+        <label for="route">Route</label>
+        <select id="route"></select>
+      </div>
+      <div class="card">
+        <h2 id="chart-title"></h2>
+        <p class="muted small" id="chart-sub"></p>
+        <div id="chart" role="img"></div>
+        <p class="legend small"><span class="swatch pred"></span>Forecast for today <span class="swatch typ"></span>Typical (last 14 days)</p>
+      </div>
+      <div class="card">
+        <h2>Latest-running routes today</h2>
+        <p class="muted small">Forecast average lateness from 6 am to 7 pm, as minutes behind schedule.</p>
+        <div class="tablewrap"><table id="rank"></table></div>
+      </div>
+    </section>
+
+    <section id="accuracy" hidden>
+      <div class="card">
+        <h2>How accurate is it?</h2>
+        <p id="bt-text"></p>
+        <div class="tablewrap"><table id="bt"></table></div>
+        <h3>Scored every day</h3>
+        <p class="muted small">Each morning's forecast, checked against what happened that day. Error is route-hour average lateness, in minutes.</p>
+        <div class="tablewrap"><table id="live"></table></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How it works</h2>
+      <ul>
+        <li><b>Data.</b> Every 15 minutes, a GitHub Action reads Metro Transit's <a href="https://svc.metrotransit.org/">GTFS-Realtime trip updates</a> and records how far behind schedule every active bus and train is at its next stop.</li>
+        <li><b>Target.</b> Average lateness per route per hour.</li>
+        <li><b>Features.</b> The model uses only what's known by 4 am:
+          <ul>
+            <li>route, hour, day of week and holidays;</li>
+            <li>that route-hour's lateness yesterday, a week ago, and averaged over the last 14 days;</li>
+            <li>the route's average yesterday;</li>
+            <li>hourly weather (temperature, rain, snow, wind) from <a href="https://open-meteo.com/">Open-Meteo</a>.</li>
+          </ul>
+        </li>
+        <li><b>Model.</b> A LightGBM regressor with absolute-error loss. It is compared against two baselines: same hour last week, and the trailing 14-day average.</li>
+      </ul>
+      <p class="muted small" id="updated"></p>
+      <p class="small">Code: <a href="https://github.com/KennedyJohnson/metro-transit-delays">GitHub</a>. Built alongside <a href="https://gopher-x-metro.github.io/Gopher-X-Metro/">Gopher X Metro</a>. Not affiliated with Metro Transit.</p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

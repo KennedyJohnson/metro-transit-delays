@@ -1,0 +1,6 @@
+gtfs-realtime-bindings>=1.0
+requests
+pandas>=2.2
+pyarrow
+lightgbm>=4.3
+pytest

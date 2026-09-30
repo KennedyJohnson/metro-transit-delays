@@ -1,0 +1,3 @@
+data/gtfs/
+__pycache__/
+.pytest_cache/
