@@ -1,19 +1,20 @@
 """Keeps the raw snapshot folder bounded: gzips finished days and deletes days older than the retention window.
 
 A year covers every season, holiday and school term once, which is what the model needs; older days add little
-(the recent7 feature tracks drift) but keep growing the repo's working tree and the daily job's run time.
+(the recent7 feature tracks drift) but keep growing the data branch and the daily job's run time.
 
-    python collector/trim.py [--days 365]
+    RAW_DIR=store python collector/trim.py [--days 365]
 """
 import argparse
 import gzip
+import os
 import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "raw"
+RAW = Path(os.environ.get("RAW_DIR", ROOT / "data" / "raw"))
 RETAIN_DAYS = 365
 TZ = ZoneInfo("America/Chicago")
 

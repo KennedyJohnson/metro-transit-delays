@@ -11,6 +11,7 @@
     python model/train.py
 """
 import json
+import os
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -27,7 +28,8 @@ import features as F  # noqa: E402
 import trees  # noqa: E402
 from common import gtfs  # noqa: E402
 
-RAW, OUT = ROOT / "data" / "raw", ROOT / "docs" / "data"
+# raw snapshots live on the repo's `data` branch; the workflows check it out and point RAW_DIR at it
+RAW, OUT = Path(os.environ.get("RAW_DIR", ROOT / "data" / "raw")), ROOT / "docs" / "data"
 MIN_DAYS, TEST_DAYS, HORIZON = 10, 7, 14
 STALE_HOURS = 36  # fail if the collector has been silent this long
 MSP = dict(latitude=44.98, longitude=-93.27)

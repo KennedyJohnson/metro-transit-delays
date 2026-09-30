@@ -17,8 +17,15 @@ jobs:
   forecast:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RAW_DIR: ${{ github.workspace }}/store
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: data
+          path: store
+          fetch-depth: 1
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -36,10 +43,30 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/raw docs/data
+          git add docs/data
           git diff --staged --quiet && exit 0
           git commit -q -m "forecast: daily update [automated]"
           for i in 1 2 3; do git pull -q --rebase && git push -q && exit 0; git rebase --abort 2>/dev/null; sleep $((i * 5)); done
+          exit 1
+      # Replace the data branch's history with one commit holding just the retained days, so old snapshots and
+      # the collector's 96 commits a day don't pile up. The lease retries if the collector pushed meanwhile.
+      - name: Squash the data branch
+        if: always()
+        working-directory: store
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch -q --depth 1 origin data
+            git checkout -q -f -B work origin/data
+            git branch -q -D snap 2>/dev/null || true
+            python ../collector/trim.py
+            git checkout -q --orphan snap
+            git add -A
+            git commit -q -m "data: raw snapshots, retained days [automated]"
+            git push -q --force-with-lease="data:$(git rev-parse origin/data)" origin snap:data && exit 0
+            sleep 20
+          done
           exit 1
 
   alert-on-failure:

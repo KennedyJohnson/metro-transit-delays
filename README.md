@@ -18,7 +18,7 @@ It also names the most and least reliable buses around your time. Save your regu
 1. **Collect** ([`collector/collect.py`](collector/collect.py), every 15 min via GitHub Actions). The collector reads Metro Transit's [GTFS-Realtime TripUpdates](https://svc.metrotransit.org/mtgtfs/tripupdates.pb) and keeps each active trip's next-stop delay.
    - It matches each row to the static schedule: scheduled time at that stop, the stop's position in the trip, and the trip's start time.
    - It uses the feed's `delay` field, or predicted minus scheduled time when that's missing. After-midnight (`25:05:00`) times, DST, and missing `start_date` are handled.
-   - Output goes to `data/raw/YYYY-MM-DD.csv`.
+   - Output goes to `$RAW_DIR/YYYY-MM-DD.csv` (default `data/raw/`; in Actions, a checkout of the `data` branch).
 2. **Train** ([`model/train.py`](model/train.py), daily at about 4 am Central). It trains three LightGBM models on individual observed departures:
    - typical delay (median, L1 loss);
    - P(5+ min late);
@@ -45,9 +45,11 @@ GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a br
 
 | Workflow | When | What |
 |---|---|---|
-| `collect.yml` | continuous | polls the live feed every 15 min for ~5.5 h per run, then starts the next run itself (6-hourly cron restarts the chain if it breaks) → `data/raw/` |
-| `forecast.yml` | daily 09:15 UTC | gzips finished days and drops raw days older than 365 (`collector/trim.py`), tests, live score, retrain on up to 2M sampled rows, export `docs/data/`; opens a `stale-data` issue on failure |
+| `collect.yml` | continuous | polls the live feed every 15 min for ~5.5 h per run, then starts the next run itself (6-hourly cron restarts the chain if it breaks) → the `data` branch |
+| `forecast.yml` | daily 09:15 UTC | gzips finished days and drops raw days older than 365 (`collector/trim.py`), then squashes the `data` branch to one commit; tests, live score, retrain on up to 2M sampled rows, export `docs/data/`; opens a `stale-data` issue on failure |
 | `ci.yml` | pushes / PRs | pytest, incl. the Python↔JS parity test |
+
+Raw snapshots (`YYYY-MM-DD.csv[.gz]`, one per day) live on the `data` branch, not `main`: the collector commits there every 15 minutes, and the daily job replaces that branch's history with a single commit of the last 365 days so the repo doesn't grow without bound. Locally, put them in `data/raw/` (or set `RAW_DIR`).
 
 Data files the site reads (`docs/data/`): `meta.json` (status), `routes.json`, `routes/<route>.json` (stops, trips, history), `calendar.json` (services for the next 14 days, holidays), `model_{median,late,early}.json`, `metrics.json` (backtest), `live.json` (daily scores). [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro) reads the same files to flag departures likely to run late.
 

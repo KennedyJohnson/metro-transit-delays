@@ -24,8 +24,15 @@ jobs:
     env:
       POLLS: 22          # 22 x 15 min = 5.5 h
       INTERVAL: 900
+      RAW_DIR: ${{ github.workspace }}/store
     steps:
       - uses: actions/checkout@v7
+      # raw snapshots live on the `data` branch, which the daily job squashes to one commit so the repo stays small
+      - uses: actions/checkout@v7
+        with:
+          ref: data
+          path: store
+          fetch-depth: 1
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -43,17 +50,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git -C store config user.name "github-actions[bot]"
+          git -C store config user.email "github-actions[bot]@users.noreply.github.com"
+          # Each poll starts from the branch as it is now (the daily job may have squashed it), appends, pushes.
+          # If the push races that job, re-poll on the fresh branch.
+          snapshot() {
+            git -C store fetch -q --depth 1 origin data && git -C store reset -q --hard origin/data || return 1
+            python collector/collect.py || { echo "::warning::poll $i failed"; return 0; }
+            git -C store add -A
+            git -C store diff --cached --quiet && return 0
+            git -C store commit -q -m "data: snapshot [automated]"
+            git -C store push -q origin HEAD:data
+          }
           for i in $(seq 1 "$POLLS"); do
             start=$(date +%s)
-            python collector/collect.py || echo "::warning::poll $i failed"
-            git add data/raw
-            if ! git diff --staged --quiet; then
-              git commit -q -m "data: snapshot [automated]"
-              # a failed rebase is undone so later polls can still commit; unpushed snapshots go with the next push
-              for try in 1 2 3; do git pull -q --rebase && git push -q && break; git rebase --abort 2>/dev/null; sleep $((try * 5)); done
-            fi
+            for try in 1 2 3; do snapshot && break; sleep 20; done
             # GitHub's cron hasn't been firing for this repo, so the collector also starts the daily
             # training job once per UTC day after 09:00 if it hasn't run yet
             if [ "$(date -u +%H)" -ge 9 ] && [ "$(gh run list --workflow forecast.yml --created ">=$(date -u +%F)" --json databaseId -q length)" = "0" ]; then

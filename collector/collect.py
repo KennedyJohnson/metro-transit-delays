@@ -4,12 +4,13 @@ Reads the GTFS-Realtime TripUpdates feed and keeps each trip's next-stop update:
 trip's current lateness there. Every row is joined to the static schedule (cached daily in data/gtfs/) so it also
 records the scheduled time at that stop, the stop's position in the trip and the trip's start time, which is what
 the model needs to learn delays per departure and per stop. Delay comes from the feed's `delay` field when
-present, otherwise predicted arrival minus scheduled arrival. Appends to data/raw/YYYY-MM-DD.csv (local date of
+present, otherwise predicted arrival minus scheduled arrival. Appends to $RAW_DIR/YYYY-MM-DD.csv (local date of
 the poll). Run every ~15 minutes.
 
     python collector/collect.py [--feed tripupdates.pb]
 """
 import argparse
+import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -24,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common import gtfs  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "raw"
+# raw snapshots live on the repo's `data` branch; the workflows check it out and point RAW_DIR at it
+RAW = Path(os.environ.get("RAW_DIR", ROOT / "data" / "raw"))
 FEED_URL = "https://svc.metrotransit.org/mtgtfs/tripupdates.pb"
 TZ = ZoneInfo("America/Chicago")
 FIELDS = ["ts", "route_id", "direction_id", "trip_id", "start_date", "stop_sequence", "stop_id", "delay_s", "source",
