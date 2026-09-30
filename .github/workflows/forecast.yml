@@ -28,7 +28,7 @@ jobs:
           node-version: "22"
       - run: pip install -r requirements.txt
       - name: Compress finished days
-        run: find data/raw -name '*.csv' ! -name "$(TZ=America/Chicago date +%F).csv" -exec gzip -f {} \;
+        run: mkdir -p data/raw && find data/raw -name '*.csv' ! -name "$(TZ=America/Chicago date +%F).csv" -exec gzip -f {} \;
       - run: python -m pytest -q tests
       - run: python model/train.py
       - name: Commit
