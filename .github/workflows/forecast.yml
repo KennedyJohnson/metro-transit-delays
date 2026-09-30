@@ -39,7 +39,7 @@ jobs:
           git add data/raw docs/data
           git diff --staged --quiet && exit 0
           git commit -q -m "forecast: daily update [automated]"
-          for i in 1 2 3; do git pull -q --rebase && git push -q && exit 0; sleep $((i * 5)); done
+          for i in 1 2 3; do git pull -q --rebase && git push -q && exit 0; git rebase --abort 2>/dev/null; sleep $((i * 5)); done
           exit 1
 
   alert-on-failure:
