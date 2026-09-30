@@ -14,6 +14,7 @@ from pandas.tseries.holiday import USFederalHolidayCalendar
 TZ = ZoneInfo("America/Chicago")
 K = 20  # smoothing strength: a trip/stop needs ~20 observations before its own history outweighs its route's
 LATE, EARLY = 300, -60  # 5+ min late; left 1+ min early
+MAX_AHEAD_MIN = 10  # an observation is the bus nearing its next stop, not a forecast far ahead
 WX = ["temperature_2m", "precipitation", "snowfall", "wind_speed_10m"]
 FEATURES = ["hour", "dow", "holiday", "progress", "stop_idx", "start_hour", "rd_mean", "rd_late", "rd_early",
             "trip_mean", "trip_late", "trip_early", "trip_n", "stop_mean", "recent7", *WX]
@@ -32,6 +33,13 @@ def load_obs(raw_dir: Path) -> pd.DataFrame:
     df = df[(df.source != "canceled") & df.delay_s.notna() & df.sched_s.notna()].copy()
     df["date"] = pd.to_datetime(df.start_date, format="%Y%m%d", errors="coerce")
     df = df.dropna(subset=["date"])
+    # Keep only real sightings. A trip that hasn't left its first stop is reported with delay 0 until it starts,
+    # so drop those placeholders, and anything whose predicted arrival is more than MAX_AHEAD_MIN away.
+    midnight = ((df.date + pd.Timedelta(hours=12)).dt.tz_localize(TZ) - pd.Timedelta(hours=12)
+                - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)  # unit-safe epoch seconds
+    ahead_min = (midnight + df.sched_s + df.delay_s - df.ts) / 60
+    not_started = (df.stop_idx == 0) & (df.delay_s == 0) & (midnight + df.sched_s > df.ts)
+    df = df[(ahead_min <= MAX_AHEAD_MIN) & ~not_started].copy()
     # a trip seen at the same stop in several polls: keep the last snapshot (closest to arrival)
     df = df.sort_values("ts").drop_duplicates(["date", "trip_id", "stop_sequence"], keep="last")
     df["direction_id"] = df.direction_id.fillna(0).astype(int)

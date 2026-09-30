@@ -143,3 +143,17 @@ def test_train_live_and_parity(world):
 
 def monkeypatch_out(path):
     train.OUT = path
+
+
+def test_load_obs_drops_not_started_placeholders(tmp_path):
+    mid = int(pd.Timestamp("2026-10-05").tz_localize(F.TZ).timestamp())
+    base = dict(route_id="21", direction_id=0, start_date="20261005", stop_id="S0", source="feed", n_stops=10, trip_start_s=28800)
+    rows = [
+        base | dict(trip_id="started", stop_sequence=3, stop_idx=2, sched_s=29000, delay_s=120, ts=mid + 29000 + 60),
+        base | dict(trip_id="placeholder", stop_sequence=1, stop_idx=0, sched_s=30000, delay_s=0, ts=mid + 30000 - 1500),
+        base | dict(trip_id="far_ahead", stop_sequence=5, stop_idx=4, sched_s=32000, delay_s=60, ts=mid + 32000 - 1800),
+        base | dict(trip_id="first_stop_late", stop_sequence=1, stop_idx=0, sched_s=31000, delay_s=240, ts=mid + 31000 + 200),
+    ]
+    (tmp_path / "raw").mkdir()
+    pd.DataFrame(rows).to_csv(tmp_path / "raw" / "2026-10-05.csv", index=False)
+    assert sorted(F.load_obs(tmp_path / "raw").trip_id) == ["first_stop_late", "started"]
