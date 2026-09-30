@@ -40,6 +40,8 @@ jobs:
           key: gtfs-${{ steps.day.outputs.day }}
           restore-keys: gtfs-
       - name: Poll every 15 minutes
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -50,6 +52,11 @@ jobs:
             if ! git diff --staged --quiet; then
               git commit -q -m "data: snapshot [automated]"
               for try in 1 2 3; do git pull -q --rebase && git push -q && break; sleep $((try * 5)); done
+            fi
+            # GitHub's cron hasn't been firing for this repo, so the collector also starts the daily
+            # training job once per UTC day after 09:00 if it hasn't run yet
+            if [ "$(date -u +%H)" -ge 9 ] && [ "$(gh run list --workflow forecast.yml --created ">=$(date -u +%F)" --json databaseId -q length)" = "0" ]; then
+              gh workflow run forecast.yml --ref main && echo "started today's forecast"
             fi
             if [ "$i" -lt "$POLLS" ]; then sleep $(( INTERVAL - ($(date +%s) - start) % INTERVAL )); fi
           done
