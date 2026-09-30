@@ -1,6 +1,6 @@
 name: Daily forecast
 
-# 09:15 UTC = 4:15 am CDT / 3:15 am CST, before the morning rush.
+# 09:15 UTC = 4:15 am CDT / 3:15 am CST, before the morning rush. Also refreshes schedules from the static GTFS.
 on:
   schedule:
     - cron: "15 9 * * *"
@@ -23,13 +23,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - run: pip install -r requirements.txt
-      - name: Route names from the static GTFS
-        run: mkdir -p data/gtfs && curl -sfL -o data/gtfs/gtfs.zip https://svc.metrotransit.org/mtgtfs/gtfs.zip || true
       - name: Compress finished days
         run: find data/raw -name '*.csv' ! -name "$(TZ=America/Chicago date +%F).csv" -exec gzip -f {} \;
       - run: python -m pytest -q tests
-      - run: python model/forecast.py
+      - run: python model/train.py
       - name: Commit
         if: always()
         run: |
@@ -54,6 +55,6 @@ jobs:
             await github.rest.issues.create({
               ...context.repo,
               title: `Daily forecast failed (${new Date().toISOString().slice(0,10)})`,
-              body: `The site is showing yesterday's forecast, or the collector has stopped.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              body: `Predictions and schedules on the site are going stale, or the collector has stopped.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               labels: ['stale-data'],
             });

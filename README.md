@@ -1,44 +1,55 @@
-# How late will my bus be today?
+# Will my bus be late?
 
 **Live site:** https://kennedyjohnson.github.io/metro-transit-delays/
 
-An hour-by-hour forecast of how late each Twin Cities Metro Transit route will run today. A model trained on the history of Metro Transit's own live feed makes the forecast each morning, and every forecast is later scored against what actually happened. It's a companion to [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro), which shows where the buses are right now.
+Pick a Twin Cities Metro Transit route, direction, stop, day and time. For each scheduled departure, the site shows:
+- how late it usually runs;
+- the chance it's 5+ minutes late;
+- the chance it leaves early.
+
+It also names the most and least reliable buses around your time. Save your regular trips and they're one tap away next time. It's a companion to [Gopher X Metro](https://github.com/Gopher-X-Metro/Gopher-X-Metro), which shows where buses are right now. This site is for planning which bus to catch.
 
 ## How it works
 
-1. **Collect** ([`collector/collect.py`](collector/collect.py), every 15 min via GitHub Actions). The collector reads the [GTFS-Realtime TripUpdates](https://svc.metrotransit.org/mtgtfs/tripupdates.pb) feed and records each active trip's lateness at its next stop.
-   - Lateness comes from the feed's `delay` field. If that's missing, the collector computes predicted minus scheduled arrival from the static GTFS, which handles after-midnight `25:05:00` times and DST.
-   - Cancelled trips are recorded separately.
-   - Output goes to `data/raw/YYYY-MM-DD.csv`. The daily job gzips finished days.
-2. **Forecast** ([`model/forecast.py`](model/forecast.py), daily at about 4 am Central).
-   - **Target:** average lateness per route per hour.
-   - **Features:** the model uses only what's known at forecast time:
-     - route, hour, day of week, federal holidays;
-     - that route-hour's lateness yesterday and a week ago, and its trailing 14-day mean;
-     - the route's mean yesterday;
-     - hourly [Open-Meteo](https://open-meteo.com/) weather: archive for training, forecast for today.
-   - **Model:** LightGBM with L1 loss.
-3. **Evaluate twice:**
-   - **Backtest:** the last 7 days are held out and compared against two baselines, same hour last week and the trailing 14-day mean.
-   - **Live:** each day's forecast is saved to `data/forecasts/` and scored the next day against the actuals (`docs/data/live.json`). The published accuracy therefore includes forecasts made before the outcome was known.
+1. **Collect** ([`collector/collect.py`](collector/collect.py), every 15 min via GitHub Actions). The collector reads Metro Transit's [GTFS-Realtime TripUpdates](https://svc.metrotransit.org/mtgtfs/tripupdates.pb) and keeps each active trip's next-stop delay.
+   - It matches each row to the static schedule: scheduled time at that stop, the stop's position in the trip, and the trip's start time.
+   - It uses the feed's `delay` field, or predicted minus scheduled time when that's missing. After-midnight (`25:05:00`) times, DST, and missing `start_date` are handled.
+   - Output goes to `data/raw/YYYY-MM-DD.csv`.
+2. **Train** ([`model/train.py`](model/train.py), daily at about 4 am Central). It trains three LightGBM models on individual observed departures:
+   - typical delay (median, L1 loss);
+   - P(5+ min late);
+   - P(1+ min early).
 
-Forecasting starts once 10 days of data exist. Until then the site shows collection progress.
+   The features ([`model/features.py`](model/features.py)) are all known before the day of travel:
+   - scheduled hour, day of week, holiday;
+   - how far along the trip the stop is;
+   - smoothed history of the route/direction, of that exact scheduled trip, and of that stop;
+   - the route's past week;
+   - hourly Open-Meteo weather.
+
+   History tables in training are computed out-of-fold by day, so a departure never sees its own outcome.
+3. **Serve** in the browser. Models are exported as JSON trees ([`docs/model.js`](docs/model.js)) and features are rebuilt by [`docs/features.js`](docs/features.js). Per-route schedule files carry each trip's and stop's history, and the day's weather comes from Open-Meteo. A test checks that the browser's features and predictions match Python exactly.
+4. **Evaluate:**
+   - **Backtest:** the last 7 days are held out against baselines: assume on time, the route's average, and the trip's own average (`docs/data/metrics.json`).
+   - **Live:** each morning, before retraining, the model the site was serving is scored on the departures it predicted (`docs/data/live.json`).
+
+Schedules are published from day one. Predictions start once 10 days of data exist.
 
 ## Run locally
 
 ```bash
 pip install -r requirements.txt
-python collector/collect.py          # one snapshot
-python model/forecast.py             # needs >= 10 days in data/raw
-python -m pytest -q tests            # synthetic-data tests, no network
+python collector/collect.py          # one snapshot (downloads the static GTFS on first run)
+python model/train.py                # schedules always; models once data/raw has >= 10 days
+python -m pytest -q tests            # synthetic GTFS + observations, no network; needs node for the parity test
 python -m http.server -d docs 8000
 ```
 
 ## Limitations
 
-- Lateness is measured at each trip's *next* stop at poll time. A trip that makes up time later isn't credited.
-- GitHub may delay or skip 15-minute scheduled runs, so some hours are sampled more than others.
-- Hours with fewer than 5 observations for a route are dropped.
-- Lateness can't be measured for trips the feed doesn't track.
+- Delay is measured at a trip's *next* stop when polled, so each trip is sampled at a few stops per run, not every stop.
+- GitHub may delay or skip 15-minute scheduled runs.
+- Arrival delay stands in for departure delay.
+- Predictions are for planning. They can't see crashes, detours or breakdowns on the day.
 
 Data: Metro Transit (not affiliated). Weather: Open-Meteo (CC BY 4.0).

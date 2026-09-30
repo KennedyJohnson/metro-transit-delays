@@ -3,70 +3,98 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Metro Transit Delay Forecast</title>
-  <meta name="description" content="Hour-by-hour forecast of how late each Twin Cities Metro Transit route will run today, from a model trained on its own live-feed history.">
+  <title>Will My Bus Be Late?</title>
+  <meta name="description" content="Pick your Metro Transit route, stop and time to see how likely each departure is to run late or leave early, from a model trained on Metro Transit's own live feed.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚌</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main>
     <header>
-      <h1>How late will my bus be today?</h1>
-      <p class="lede">An hour-by-hour forecast of how late each Metro Transit route will run today. A model trained on the history of Metro Transit's own live feed makes the forecast each morning, and every forecast is scored against what actually happened.</p>
+      <h1>Will my bus be late?</h1>
+      <p class="lede">Pick your route, stop and time. For each scheduled Twin Cities Metro Transit departure, you'll see how late it usually runs, the chance it's 5+ minutes late, and the chance it leaves early. Use it to choose which bus to catch.</p>
     </header>
 
-    <section id="collecting" class="card" hidden>
-      <h2>Still collecting data</h2>
-      <p id="collecting-text"></p>
+    <div id="notice" class="notice" hidden></div>
+
+    <section id="saved-wrap" hidden>
+      <h2 class="label">My trips</h2>
+      <div id="saved" class="chips"></div>
     </section>
 
-    <section id="today" hidden>
-      <div class="controls">
+    <section class="card" id="picker">
+      <div class="field">
         <label for="route">Route</label>
-        <select id="route"></select>
+        <select id="route"><option value="">Loading routes…</option></select>
       </div>
-      <div class="card">
-        <h2 id="chart-title"></h2>
-        <p class="muted small" id="chart-sub"></p>
-        <div id="chart" role="img"></div>
-        <p class="legend small"><span class="swatch pred"></span>Forecast for today <span class="swatch typ"></span>Typical (last 14 days)</p>
+      <div class="field" id="dir-field" hidden>
+        <span class="label" id="dir-label">Direction</span>
+        <div id="dirs" class="seg" role="radiogroup" aria-labelledby="dir-label"></div>
       </div>
-      <div class="card">
-        <h2>Latest-running routes today</h2>
-        <p class="muted small">Forecast average lateness from 6 am to 7 pm, as minutes behind schedule.</p>
-        <div class="tablewrap"><table id="rank"></table></div>
+      <div class="field" id="stop-field" hidden>
+        <label for="stop">Your stop</label>
+        <select id="stop"></select>
       </div>
-    </section>
-
-    <section id="accuracy" hidden>
-      <div class="card">
-        <h2>How accurate is it?</h2>
-        <p id="bt-text"></p>
-        <div class="tablewrap"><table id="bt"></table></div>
-        <h3>Scored every day</h3>
-        <p class="muted small">Each morning's forecast, checked against what happened that day. Error is route-hour average lateness, in minutes.</p>
-        <div class="tablewrap"><table id="live"></table></div>
+      <div class="row" id="when-field" hidden>
+        <div class="field">
+          <label for="day">Day</label>
+          <select id="day"></select>
+        </div>
+        <div class="field">
+          <label for="time">Around</label>
+          <input type="time" id="time" step="300">
+        </div>
       </div>
     </section>
 
-    <section class="card">
-      <h2>How it works</h2>
+    <section id="results" hidden>
+      <div class="results-head">
+        <h2 id="results-title"></h2>
+        <button id="save" class="ghost" type="button">☆ Save trip</button>
+      </div>
+      <p id="tip" class="tip" hidden></p>
+      <ol id="deps" class="deps"></ol>
+      <button id="more" class="ghost" type="button">Show the whole day</button>
+      <p class="small muted">These are planning estimates from past patterns and the weather forecast. For where your bus is right now, use <a href="https://gopher-x-metro.github.io/Gopher-X-Metro/">Gopher X Metro</a> or <a href="https://www.metrotransit.org/nextrip">Metro Transit NexTrip</a>.</p>
+    </section>
+
+    <details class="card" id="accuracy" hidden>
+      <summary><b>How accurate is this?</b></summary>
+      <p id="bt-text"></p>
+      <div class="tablewrap"><table id="bt"></table></div>
+      <h3>Checked every day</h3>
+      <p class="small muted">Each day, the model the site was serving is scored on the departures it predicted. It had never seen them.</p>
+      <div class="tablewrap"><table id="live"></table></div>
+    </details>
+
+    <details class="card">
+      <summary><b>How it works</b></summary>
       <ul>
-        <li><b>Data.</b> Every 15 minutes, a GitHub Action reads Metro Transit's <a href="https://svc.metrotransit.org/">GTFS-Realtime trip updates</a> and records how far behind schedule every active bus and train is at its next stop.</li>
-        <li><b>Target.</b> Average lateness per route per hour.</li>
-        <li><b>Features.</b> The model uses only what's known by 4 am:
+        <li><b>Data.</b> Every 15 minutes, a GitHub Action reads Metro Transit's <a href="https://svc.metrotransit.org/">GTFS-Realtime trip updates</a>. It records how far ahead of or behind schedule every active bus and train is at its next stop, and matches each one to the published schedule.</li>
+        <li><b>What it predicts.</b> For each scheduled departure at your stop, three things:
           <ul>
-            <li>route, hour, day of week and holidays;</li>
-            <li>that route-hour's lateness yesterday, a week ago, and averaged over the last 14 days;</li>
-            <li>the route's average yesterday;</li>
-            <li>hourly weather (temperature, rain, snow, wind) from <a href="https://open-meteo.com/">Open-Meteo</a>.</li>
+            <li>the typical (median) delay;</li>
+            <li>the chance it's 5 or more minutes late;</li>
+            <li>the chance it leaves 1 or more minutes early.</li>
           </ul>
         </li>
-        <li><b>Model.</b> A LightGBM regressor with absolute-error loss. It is compared against two baselines: same hour last week, and the trailing 14-day average.</li>
+        <li><b>What it knows.</b>
+          <ul>
+            <li>How late that exact scheduled trip, your stop and the route have run before. A trip needs about 20 observations before its own history outweighs its route's.</li>
+            <li>How far along the route your stop is.</li>
+            <li>The time of day and day of week, and holidays.</li>
+            <li>How the route has run this past week.</li>
+            <li>The hourly <a href="https://open-meteo.com/">weather forecast</a> (temperature, rain, snow, wind).</li>
+          </ul>
+        </li>
+        <li><b>Model.</b> Gradient-boosted trees (LightGBM), retrained every morning. The model runs in your browser.</li>
       </ul>
       <p class="muted small" id="updated"></p>
-      <p class="small">Code: <a href="https://github.com/KennedyJohnson/metro-transit-delays">GitHub</a>. Built alongside <a href="https://gopher-x-metro.github.io/Gopher-X-Metro/">Gopher X Metro</a>. Not affiliated with Metro Transit.</p>
-    </section>
+      <p class="small">Code: <a href="https://github.com/KennedyJohnson/metro-transit-delays">GitHub</a>. Not affiliated with Metro Transit.</p>
+    </details>
   </main>
+  <script src="features.js"></script>
+  <script src="model.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
