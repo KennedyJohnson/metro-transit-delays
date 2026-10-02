@@ -41,7 +41,7 @@ def observations(z, days, wx):
     out = {}
     for d in days:
         svc = "WK" if d.dayofweek < 5 else "WE"
-        p = pos[pos.service_id == svc].sample(frac=0.35, random_state=int(d.dayofyear))
+        p = pos[pos.service_id == svc].sample(frac=0.5, random_state=int(d.dayofyear))
         hour = (p.sched_s // 3600).astype(int)
         rush = np.where(hour.isin([7, 8, 16, 17]), 3.0, 0.0)
         mu = (np.where(p.route_id == "21", 3.0, 0.5) + rush + p.trip_id.map(trip_effect) + 2.5 * p.stop_idx / 9
