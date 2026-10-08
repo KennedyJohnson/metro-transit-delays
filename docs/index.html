@@ -6,11 +6,14 @@
   <title>Will My Bus Be Late?</title>
   <meta name="description" content="Pick your Metro Transit route, stop and time to see how likely each departure is to run late or leave early, from a model trained on Metro Transit's own live feed.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚌</text></svg>">
-  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <main>
     <header>
+      <div class="eyebrow"><a href="https://kennedyjohnson.github.io/">Kennedy Johnson</a> · Twin Cities Metro Transit</div>
       <h1>Will my bus be late?</h1>
       <p class="lede">Pick your route, stop and time. For each scheduled Twin Cities Metro Transit departure, you'll see how late it usually runs, the chance it's 5+ minutes late, and the chance it leaves early. Use it to choose which bus to catch.</p>
     </header>
@@ -23,6 +26,12 @@
     </section>
 
     <section class="card" id="picker">
+      <div class="quick" id="quick">Try
+        <button type="button" data-route="901">Blue Line</button>
+        <button type="button" data-route="902">Green Line</button>
+        <button type="button" data-route="2">Route 2</button>
+        <button type="button" data-route="5">Route 5</button>
+      </div>
       <div class="field">
         <label for="route">Route</label>
         <select id="route"><option value="">Loading routes…</option></select>
@@ -55,7 +64,7 @@
       <p id="tip" class="tip" hidden></p>
       <ol id="deps" class="deps"></ol>
       <button id="more" class="ghost" type="button">Show the whole day</button>
-      <p class="small muted">These are planning estimates from past patterns and the weather forecast. For where your bus is right now, use <a href="https://gopher-x-metro.github.io/Gopher-X-Metro/">Gopher X Metro</a> or <a href="https://www.metrotransit.org/nextrip">Metro Transit NexTrip</a>.</p>
+      <p class="small muted">These are planning estimates from past patterns and the weather forecast. For where your bus is right now, use <a href="https://gopher-x-metro.github.io/">Gopher X Metro</a> or <a href="https://www.metrotransit.org/nextrip">Metro Transit NexTrip</a>.</p>
     </section>
 
     <details class="card" id="accuracy" hidden>
@@ -90,9 +99,23 @@
         <li><b>Model.</b> Gradient-boosted trees (LightGBM), retrained every morning. The model runs in your browser.</li>
       </ul>
       <p class="muted small" id="updated"></p>
-      <p class="small">Code: <a href="https://github.com/KennedyJohnson/metro-transit-delays">GitHub</a>. Not affiliated with Metro Transit.</p>
     </details>
+
+    <footer>
+      <p><b>These are estimates, not guarantees.</b> They come from past patterns and the weather forecast, and can't see incidents or detours on the day. Not affiliated with Metro Transit.</p>
+      <p><b>Data.</b> <a href="https://svc.metrotransit.org/">Metro Transit GTFS-Realtime</a>, <a href="https://open-meteo.com/">Open-Meteo</a> (CC BY 4.0). <b>Methods.</b> <a href="https://lightgbm.readthedocs.io/">LightGBM</a>, run in your browser. <b>Code.</b> <a href="https://github.com/KennedyJohnson/metro-transit-delays">GitHub</a> · <a href="https://kennedyjohnson.github.io/">Back to portfolio</a></p>
+    </footer>
   </main>
+  <script>
+    (function () {
+      document.getElementById("quick").addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-route]"); if (!b) return;
+        var sel = document.getElementById("route");
+        if (!sel.querySelector('option[value="' + b.dataset.route + '"]')) return;
+        sel.value = b.dataset.route; sel.dispatchEvent(new Event("change"));
+      });
+    })();
+  </script>
   <script src="features.js"></script>
   <script src="model.js"></script>
   <script src="app.js"></script>
