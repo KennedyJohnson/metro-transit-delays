@@ -1,1 +1,1 @@
-[]
+[{"date":"2026-10-13","model_trained_through":"2026-10-12","n":24550,"mae":2.331,"mae_trip_history":2.674,"mae_route_history":2.863,"mae_on_time":3.295,"late_share":0.2029,"early_share":0.0977,"late_auc":0.7856,"late_auc_trip_history":0.7174,"late_brier":0.1333,"late_mean_pred":0.2379,"early_auc":0.818,"early_auc_trip_history":0.7444,"early_brier":0.0709,"early_mean_pred":0.0946}]
