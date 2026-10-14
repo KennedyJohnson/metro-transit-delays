@@ -63,12 +63,12 @@ footer p { margin: 0 0 8px; }
 footer b { color: var(--ink2); font-weight: 600; }
 @media (max-width: 420px) { .row { flex-direction: column; gap: 0; } .row .field { margin-bottom: 16px; } }
 
-/* Field Documents theme: bus stop signage. Light page, navy sign blade header, square pills. */
+/* Field Documents theme: bus stop signage. Dark page, Metro Transit blue sign blade header, square pills. */
 :root {
-  color-scheme: light;
-  --bg: #eeeee8; --surface: #fff; --text: #111; --ink2: #33332f; --muted: #66665e; --border: #c9c9c0;
-  --accent: #0053a0; --accent-soft: #e0ebf6; --on-accent: #fff; --sign: #0053a0; --route: #ffd200;
-  --good: #116b35; --good-bg: #dcf0e2; --warn: #7a5300; --warn-bg: #fbecc4; --bad: #c8102e; --bad-bg: #f8dde1;
+  color-scheme: dark;
+  --bg: #111316; --surface: #1a1d22; --text: #f2f2ee; --ink2: #d6d6d0; --muted: #a5a8ad; --border: #3a3f47;
+  --accent: #5aa7f0; --accent-soft: #142538; --on-accent: #fff; --sign: #0053a0; --route: #ffd200;
+  --good: #7fd49a; --good-bg: #173222; --warn: #f0c46a; --warn-bg: #3a2e12; --bad: #ff9c94; --bad-bg: #3d1d1a;
   --sign-font: "Overpass", "Highway Gothic", system-ui, sans-serif;
 }
 body { font-family: "IBM Plex Sans", system-ui, sans-serif; }
@@ -79,12 +79,12 @@ h1 { font-family: var(--sign-font); font-weight: 800; letter-spacing: -0.01em; c
 h2, h3, .label, label { font-family: var(--sign-font); }
 .card, .dep, .notice, select, input[type=time], .tip { border-radius: 3px; }
 .card { border-width: 1px; }
-select, input[type=time] { background: #fff; border: 2px solid var(--text); }
-.seg button, .chips button, .quick button, .ghost, .btn { border-radius: 3px; border: 2px solid var(--text); background: #fff; font-family: var(--sign-font); font-weight: 700; }
-.seg button[aria-checked=true] { background: var(--route); border-color: var(--text); color: var(--text); }
+select, input[type=time] { background: var(--surface); border: 2px solid var(--text); }
+.seg button, .chips button, .quick button, .ghost, .btn { border-radius: 3px; border: 2px solid var(--text); background: var(--surface); font-family: var(--sign-font); font-weight: 700; }
+.seg button[aria-checked=true] { background: var(--route); border-color: var(--route); color: #111; }
 .chips button { background: var(--accent-soft); border-color: var(--accent); }
-.dep { border: 0; border-top: 3px solid var(--text); border-radius: 0; background: #fff; }
+.dep { border: 0; border-top: 3px solid var(--text); border-radius: 0; background: var(--surface); }
 .dep .time { font-family: var(--sign-font); font-weight: 800; font-size: 22px; }
 .pill { border-radius: 2px; font-family: var(--sign-font); text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
-.pill.bad { background: var(--bad); color: #fff; }
+.pill.bad { background: #c8102e; color: #fff; }
 footer .byline { font-family: var(--sign-font); font-weight: 800; color: var(--text); }
