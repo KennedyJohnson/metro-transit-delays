@@ -160,6 +160,24 @@ def test_load_obs_drops_not_started_placeholders(tmp_path):
     assert sorted(F.load_obs(tmp_path / "raw").trip_id) == ["first_stop_late", "started"]
 
 
+def test_partial_current_day_is_not_trained_through(world):
+    """The collector writes today's file while it is still filling up. If that partial day becomes
+    trained_through, the next run's live_score looks for data after today, finds only today, skips it as
+    unfinished, and the scorecard stops advancing forever."""
+    tmp, days, obs, _ = world
+    put(tmp, obs, days)
+    today = pd.Timestamp(date.today())
+    partial = obs[days[-1]].sample(frac=0.2, random_state=0).copy()
+    partial["start_date"] = today.strftime("%Y%m%d")
+    partial["ts"] = partial["ts"] + int((today - days[-1]).total_seconds())
+    partial.to_csv(tmp / "raw" / f"{today:%Y-%m-%d}.csv", index=False)
+
+    train.main()
+    meta = json.loads((tmp / "docs/meta.json").read_text())
+    assert meta["model"] is True
+    assert meta["trained_through"] == f"{days[-1]:%Y-%m-%d}"
+
+
 def test_train_with_row_cap(world, monkeypatch):
     """Past MAX_TRAIN_ROWS the models fit on a sample, but history stats and exports still use every row."""
     tmp, days, obs, _ = world

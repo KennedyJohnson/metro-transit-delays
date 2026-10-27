@@ -34,5 +34,5 @@ def write_gtfs(path, extra_stop_times=""):
         z.writestr("stops.txt", "stop_id,stop_name\n" + "".join(f"{s},Stop {s}\n" for s in STOPS))
         z.writestr("stop_times.txt", "\n".join(st) + "\n" + extra_stop_times)
         z.writestr("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
-                   "WK,1,1,1,1,1,0,0,20260101,20271231\nWE,0,0,0,0,0,1,1,20260101,20271231\n")
+                   "WK,1,1,1,1,1,0,0,20260101,20991231\nWE,0,0,0,0,0,1,1,20260101,20991231\n")
     return path

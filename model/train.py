@@ -255,27 +255,30 @@ def main():
     weather = get_weather(df.date.min() - pd.Timedelta(days=1), pd.Timestamp(now.date()) + pd.Timedelta(days=2))
     write("live.json", live_score(df, weather))
 
-    rec = F.recent7(df)
+    # Today's data is still being collected, so a partial day must not count as "trained through" — otherwise the
+    # next run's live_score picks up only today, skips it (it isn't finished), and the scorecard never advances.
+    hist = df[df.date < pd.Timestamp(now.date())]
+    rec = F.recent7(hist)
     # backtest: history tables from training days only, like serving
-    split = np.sort(df.date.unique())[-TEST_DAYS]
-    tr, te = df[df.date < split], df[df.date >= split]
+    split = np.sort(hist.date.unique())[-TEST_DAYS]
+    tr, te = hist[hist.date < split], hist[hist.date >= split]
     rows = train_sample(tr)
     Xtr = F.oof_stats_features(tr, rec, weather, rows=rows)
     Xte = F.build(te, F.stats(tr), rec, weather)
     bt_models = {k: fit(Xtr, tr.loc[Xtr.index, col], p) for k, (col, p, _) in TARGETS.items()}
     bt = evaluate(te, Xte, {k: m.predict(Xte) for k, m in bt_models.items()})
-    bt["test_days"] = [f"{pd.Timestamp(split):%Y-%m-%d}", f"{df.date.max():%Y-%m-%d}"]
+    bt["test_days"] = [f"{pd.Timestamp(split):%Y-%m-%d}", f"{hist.date.max():%Y-%m-%d}"]
     imp = pd.Series(bt_models["median"].feature_importance("gain"), index=F.FEATURES)
     bt["importance_median"] = (imp / imp.sum()).round(4).sort_values(ascending=False).to_dict()
     print("backtest", {k: v for k, v in bt.items() if not isinstance(v, (list, dict))})
     write("metrics.json", bt)
 
-    # final models on everything
-    X = F.oof_stats_features(df, rec, weather, rows=train_sample(df))
+    # final models on everything complete (today is still partial)
+    X = F.oof_stats_features(hist, rec, weather, rows=train_sample(hist))
     for k, (col, p, kind) in TARGETS.items():
-        write(f"model_{k}.json", trees.dump(fit(X, df.loc[X.index, col], p), kind))
-    st = F.stats(df)
-    last = df.date.max()
+        write(f"model_{k}.json", trees.dump(fit(X, hist.loc[X.index, col], p), kind))
+    st = F.stats(hist)
+    last = hist.date.max()
     rec_now = rec.xs(last + pd.Timedelta(days=1), level="date") if (last + pd.Timedelta(days=1)) in rec.index.get_level_values("date") else pd.Series(dtype=float)
     n = export_schedules(z, st, rec_now)
     write("meta.json", meta | {"model": True, "trained_through": f"{last:%Y-%m-%d}", "global": st["global"],
