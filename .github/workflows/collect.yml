@@ -54,13 +54,24 @@ jobs:
           git -C store config user.email "github-actions[bot]@users.noreply.github.com"
           # Each poll starts from the branch as it is now (the daily job may have squashed it), appends, pushes.
           # If the push races that job, re-poll on the fresh branch.
+          #
+          # A run polls 22 times over 5.5 h, and each poll only appends a few rows to one CSV. Committing them
+          # separately put ~90 MB/day of near-identical blobs in the repo, so fold consecutive polls into the
+          # previous snapshot commit (amend + force-with-lease). The daily job squashes the branch to a single
+          # orphan commit with a different subject, which naturally breaks the chain and starts a new commit.
           snapshot() {
             git -C store fetch -q --depth 1 origin data && git -C store reset -q --hard origin/data || return 1
             python collector/collect.py || { echo "::warning::poll $i failed"; return 0; }
             git -C store add -A
             git -C store diff --cached --quiet && return 0
-            git -C store commit -q -m "data: snapshot [automated]"
-            git -C store push -q origin HEAD:data
+            if [ "$(git -C store log -1 --format=%s)" = "data: snapshot [automated]" ]; then
+              git -C store commit -q --amend --no-edit
+              # expected tip is the one we just amended, so a concurrent writer still fails the lease
+              git -C store push -q --force-with-lease="data:$(git -C store rev-parse origin/data)" origin HEAD:data
+            else
+              git -C store commit -q -m "data: snapshot [automated]"
+              git -C store push -q origin HEAD:data
+            fi
           }
           for i in $(seq 1 "$POLLS"); do
             start=$(date +%s)
