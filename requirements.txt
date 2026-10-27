@@ -1,7 +1,9 @@
-gtfs-realtime-bindings>=1.0
-requests
-pandas>=2.2
-pyarrow
-lightgbm>=4.3
-scikit-learn>=1.4
-pytest
+# Pinned to the versions in the working venv (.venv, Python 3.14.4) as of 2026-10-27.
+# requirements.lock.txt is the full resolved environment (including transitives) for reference.
+gtfs-realtime-bindings==3.0.0
+requests==2.34.2
+pandas==3.1.0
+pyarrow==26.0.0
+lightgbm==4.7.0
+scikit-learn==1.9.1
+pytest==9.1.1
