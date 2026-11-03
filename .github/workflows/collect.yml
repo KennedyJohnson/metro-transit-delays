@@ -37,7 +37,7 @@ jobs:
         with:
           python-version: "3.15"
           cache: pip
-      - run: pip install gtfs-realtime-bindings requests pandas pyarrow
+      - run: pip install -c requirements.lock.txt gtfs-realtime-bindings requests pandas pyarrow
       - id: day
         run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       # static schedule, reused across polls; one cache per day
