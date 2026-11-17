@@ -88,3 +88,11 @@ select, input[type=time] { background: var(--surface); border: 2px solid var(--t
 .pill { border-radius: 2px; font-family: var(--sign-font); text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
 .pill.bad { background: #c8102e; color: #fff; }
 footer .byline { font-family: var(--sign-font); font-weight: 800; color: var(--text); }
+
+/* UI baseline: keyboard focus, reduced motion, text wrapping */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(h1, h2, h3) { text-wrap: balance; }
+:where(p, li, figcaption) { text-wrap: pretty; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
