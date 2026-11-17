@@ -4,6 +4,7 @@ Every feature is known before the day of travel: when the bus is scheduled at th
 the trip, how late this route/direction, this scheduled trip and this stop have run historically (smoothed
 means), how late the route ran over the past week, and the weather forecast for that hour.
 """
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -12,6 +13,12 @@ import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
 
 TZ = ZoneInfo("America/Chicago")
+
+
+def today() -> date:
+    """Today's service date in Minneapolis, not the machine's: CI runners are on UTC, which is already
+    tomorrow for six hours of every evening here."""
+    return datetime.now(TZ).date()
 K = 20  # smoothing strength: a trip/stop needs ~20 observations before its own history outweighs its route's
 LATE, EARLY = 300, -60  # 5+ min late; left 1+ min early
 MAX_AHEAD_MIN = 10  # an observation is the bus nearing its next stop, not a forecast far ahead

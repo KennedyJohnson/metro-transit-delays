@@ -13,7 +13,7 @@
 import json
 import os
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 import lightgbm as lgb
@@ -151,7 +151,7 @@ def live_score(df, weather):
     scored = {x["date"] for x in live}
     for day, g in new.groupby("date"):
         d = f"{day:%Y-%m-%d}"
-        if d in scored or day >= pd.Timestamp(date.today()) or len(g) < 500:
+        if d in scored or day >= pd.Timestamp(F.today()) or len(g) < 500:
             continue  # today isn't finished yet
         # serving uses one recent7 value per route/direction, frozen at publish time
         rec_day = pd.Series(rec.to_numpy(), index=pd.MultiIndex.from_arrays([rec.index, [day] * len(rec)]))
@@ -164,7 +164,7 @@ def live_score(df, weather):
 
 # ---------- schedule export ----------
 def export_schedules(z: Path, st: dict | None, rec: pd.Series | None):
-    today = date.today()
+    today = F.today()
     days = gtfs.next_days(HORIZON, today)
     services = gtfs.active_services(z, days)
     running = set().union(*map(set, services.values()))

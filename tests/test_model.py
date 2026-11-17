@@ -4,7 +4,6 @@ import json
 import shutil
 import subprocess
 import sys
-from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -47,7 +46,8 @@ def observations(z, days, wx):
         mu = (np.where(p.route_id == "21", 3.0, 0.5) + rush + p.trip_id.map(trip_effect) + 2.5 * p.stop_idx / 9
               + 3 * snow.reindex(d + pd.to_timedelta(hour, unit="h")).to_numpy())
         delay = (60 * (mu + rng.normal(0, 1.5, len(p)))).round().astype(int)
-        mid = int(d.tz_localize(F.TZ).timestamp())
+        # GTFS service midnight is noon minus 12 h, an hour off real midnight on DST change days, as in F.usable
+        mid = int(((d + pd.Timedelta(hours=12)).tz_localize(F.TZ) - pd.Timedelta(hours=12)).timestamp())
         out[d] = pd.DataFrame({"ts": mid + p.sched_s - 120, "route_id": p.route_id, "direction_id": p.direction_id,
                                "trip_id": p.trip_id, "start_date": d.strftime("%Y%m%d"), "stop_sequence": p.stop_sequence,
                                "stop_id": p.stop_id, "delay_s": delay, "source": "feed", "sched_s": p.sched_s,
@@ -62,7 +62,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(train, "OUT", tmp_path / "docs")
     monkeypatch.setattr(gtfs, "ensure_zip", lambda *a, **k: z)
     monkeypatch.setattr(train, "STALE_HOURS", 24 * 30)
-    today = pd.Timestamp(date.today())
+    today = pd.Timestamp(F.today())
     days = list(pd.date_range(today - pd.Timedelta(days=DAYS), today - pd.Timedelta(days=1)))
     wx = weather_for(days)
     monkeypatch.setattr(train, "get_weather", lambda s, e: wx)
@@ -166,7 +166,7 @@ def test_partial_current_day_is_not_trained_through(world):
     unfinished, and the scorecard stops advancing forever."""
     tmp, days, obs, _ = world
     put(tmp, obs, days)
-    today = pd.Timestamp(date.today())
+    today = pd.Timestamp(F.today())
     partial = obs[days[-1]].sample(frac=0.2, random_state=0).copy()
     partial["start_date"] = today.strftime("%Y%m%d")
     partial["ts"] = partial["ts"] + int((today - days[-1]).total_seconds())
